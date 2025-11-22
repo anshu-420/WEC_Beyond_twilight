@@ -46,14 +46,14 @@ class HUD:
         gui_height: int = DEFAULT_GUI_HEIGHT,
         legend_items=None,
     ):
-        self.grid_height = grid_height       # top of GUI 
-        self.window_width = window_width     # e.g. 800
-        self.gui_height = gui_height         # e.g. 100
+        self.grid_height = grid_height      
+        self.window_width = window_width    
+        self.gui_height = gui_height        
 
         # HUD values
-        self.hull_health = 100   # 0–100
-        self.fuel = 100          # 0–100
-        self.depth_m = 0         # depth in meters
+        self.hull_health = 100  
+        self.fuel = 100          
+        self.depth_m = 0       
 
         # Legend entries
         self.legend_items = legend_items if legend_items is not None else DEFAULT_LEGEND_ITEMS
