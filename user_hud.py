@@ -58,8 +58,6 @@ class HUD:
         # Legend entries
         self.legend_items = legend_items if legend_items is not None else DEFAULT_LEGEND_ITEMS
 
-        # Collected counts per object type (updated externally by main)
-        # keys match OBJECT_LABELS / DEFAULT_LEGEND_ITEMS
         self.collected_counts = {k: 0 for k in OBJECT_LABELS.keys()}
 
         # Fonts (initialize once)
@@ -89,8 +87,6 @@ class HUD:
         for i, item in enumerate(self.legend_items):
             color = item["color"]
             base_label = item["label"]
-            # Try to derive object type key from label matching OBJECT_LABELS
-            # Fallback: use the base label as-is with no count.
             obj_key = None
             for k, v in OBJECT_LABELS.items():
                 if v == base_label:
