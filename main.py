@@ -29,19 +29,18 @@ clock = pygame.time.Clock()
 # logical grid (0 = off, 1 = active)
 grid = [[0 for _ in range(COLS)] for _ in range(ROWS)]
 
-
 hud = HUD(grid_height=GRID_HEIGHT, window_width=WINDOW_WIDTH)
 
-
 # Initial values
+current_layer = 1
 hud.hull_health = 100
 hud.fuel = 100
-hud.depth_m = 100
+hud.depth_m = current_layer * 100   # NEW: depth based on layer (1 -> 100m)
 
 # viewport and selection state
 viewport_center = None          # (col,row) or None
 selected = None                 # (col,row) user-selected pixel (must be inside viewport)
-current_layer = 1
+prev_selected = None
 objects_in_layer = getObjects(current_layer)
 
 def radius_for_layer(layer):
@@ -66,7 +65,7 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-
+    
         # depth control: DOWN to go deeper, UP to go shallower
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_DOWN and current_layer < LAYERS:
@@ -74,11 +73,13 @@ while running:
                 if selected is not None:
                     viewport_center = selected
                 current_layer += 1
+                hud.depth_m = current_layer * 100          # NEW: update depth
                 objects_in_layer = getObjects(current_layer)
                 # when deeper, radius_for_layer will shrink automatically during draw
             elif event.key == pygame.K_UP and current_layer > 1:
                 # going shallower: keep the same viewport center but increase radius
                 current_layer -= 1
+                hud.depth_m = current_layer * 100          # NEW: update depth
                 objects_in_layer = getObjects(current_layer)
 
         # mouse click: select pixel only if it's inside the current viewport (non-black)
@@ -109,8 +110,13 @@ while running:
                             grid[r][c] = 0
                     grid[row][col] = 1
                     # we do NOT call getObjects or change radius here; that happens on DOWN key
-                else:
-                    print("Click ignored: outside visible (black) area.")
+                if prev_selected is not None:
+                    dx = selected[0] - prev_selected[0]
+                    dy = selected[1] - prev_selected[1]
+                    dist = (dx*dx + dy*dy) ** 0.5     # sqrt(a^2 + b^2)
+                    hud.fuel = max(0, hud.fuel - 0.1 * dist)
+
+                prev_selected = selected
 
     # Drawing
     screen.fill(BLACK)
@@ -168,7 +174,6 @@ while running:
         except Exception:
             pass
 
-
     # draw active cell(s) on top
     for r in range(rmin, rmax + 1):
         for c in range(cmin, cmax + 1):
@@ -189,10 +194,15 @@ while running:
         y = r * CELL_SIZE
         pygame.draw.line(screen, GRID_LINE, (cmin * CELL_SIZE, y), ((cmax + 1) * CELL_SIZE, y), 1)
 
+    # draw HUD
     hud.draw(screen)
 
     pygame.display.set_caption(f"Layer {current_layer}/{LAYERS}  radius={layer_radius}")
     pygame.display.flip()
     clock.tick(60)
+
+    if hud.fuel <= 0:
+        pygame.quit()
+        running = False
 
 pygame.quit()
