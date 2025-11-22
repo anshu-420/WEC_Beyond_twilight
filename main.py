@@ -1,8 +1,112 @@
 #Team Name: Anything Works
 
 import pygame
-from user_hud import HUD, OBJECT_COLORS 
+from user_hud import HUD, OBJECT_COLORS, OBJECT_LABELS
 from layers import getObjects
+import pandas as pd
+
+# ---------------- collector helpers (in-file) ----------------
+OBJ_TYPES = ['corals', 'food_web', 'hazards', 'life', 'poi', 'resources']
+
+def build_objects_store(getObjects_func, layers: int, cols: int, src_size: int = 50):
+    """Build an in-memory store scaling source 50x50 coords into our grid."""
+    scale = max(1, cols // src_size)
+    store = {}
+    for layer in range(1, layers + 1):
+        raw = getObjects_func(layer)
+        layer_store = {}
+        if not raw:
+            for ot in OBJ_TYPES:
+                layer_store[ot] = []
+            store[layer] = layer_store
+            continue
+
+        for ot in OBJ_TYPES:
+            df = raw.get(ot)
+            objs = []
+            if df is None:
+                layer_store[ot] = objs
+                continue
+
+            for _, r in df.iterrows():
+                if 'col' not in r or 'row' not in r:
+                    continue
+                try:
+                    src_c = int(r['col'])
+                    src_r = int(r['row'])
+                except Exception:
+                    continue
+
+                scaled_c = src_c * scale
+                scaled_r = src_r * scale
+                w_src = int(r['width']) if 'width' in r and not pd.isna(r['width']) else 1
+                h_src = int(r['height']) if 'height' in r and not pd.isna(r['height']) else 1
+                scaled_w = max(1, w_src * scale)
+                scaled_h = max(1, h_src * scale)
+
+                obj = {
+                    'type': ot,
+                    'src_col': src_c,
+                    'src_row': src_r,
+                    'col': int(scaled_c),
+                    'row': int(scaled_r),
+                    'w': int(scaled_w),
+                    'h': int(scaled_h),
+                    'meta': r.to_dict(),
+                }
+                objs.append(obj)
+
+            layer_store[ot] = objs
+        store[layer] = layer_store
+    return store
+
+
+def collect_at(objects_store, col, row, layer):
+    """Collect an object at (col,row) in given layer if present. Returns object or None.
+
+    The function removes the object from the in-memory store and returns it.
+    Caller is responsible for updating counts (e.g., hud.increment_collected).
+    """
+    layer_objs = objects_store.get(layer)
+    if not layer_objs:
+        return None
+    for obj_type, obj_list in layer_objs.items():
+        i = 0
+        while i < len(obj_list):
+            obj = obj_list[i]
+            oc = int(obj['col'])
+            orow = int(obj['row'])
+            w = int(obj.get('w', 1))
+            h = int(obj.get('h', 1))
+            if oc <= col < oc + w and orow <= row < orow + h:
+                collected = obj_list.pop(i)
+                return collected
+            else:
+                i += 1
+    return None
+
+
+def draw_objects(screen, objects_store, layer, cmin, cmax, rmin, rmax, cell_size, object_colors):
+    """Draw objects from store[layer] using provided `object_colors` mapping."""
+    layer_objs = objects_store.get(layer, {})
+    for obj_type, obj_list in layer_objs.items():
+        color = object_colors.get(obj_type, (255, 0, 0))
+        for obj in obj_list:
+            oc = int(obj['col'])
+            orow = int(obj['row'])
+            w = int(obj.get('w', 1))
+            h = int(obj.get('h', 1))
+            if oc + w - 1 < cmin or oc > cmax or orow + h - 1 < rmin or orow > rmax:
+                continue
+            x_px = oc * cell_size
+            y_px = orow * cell_size
+            w_px = w * cell_size
+            h_px = h * cell_size
+            pygame.draw.rect(screen, color, (x_px, y_px, w_px, h_px))
+
+
+# (legend rendering moved into HUD)
+# ---------------- end collector helpers ----------------
 
 # --- Settings ---
 WINDOW_WIDTH, WINDOW_HEIGHT = 800, 900
@@ -41,7 +145,11 @@ hud.depth_m = current_layer * 100   # NEW: depth based on layer (1 -> 100m)
 viewport_center = None          # (col,row) or None
 selected = None                 # (col,row) user-selected pixel (must be inside viewport)
 prev_selected = None
-objects_in_layer = getObjects(current_layer)
+# build objects store once (scale source 50x50 coords into our grid)
+objects_store = build_objects_store(getObjects, layers=LAYERS, cols=COLS, src_size=50)
+objects_in_layer = objects_store.get(current_layer, {})
+
+# HUD maintains collected_counts and fonts; no local collected_counts required
 
 def radius_for_layer(layer):
     """Linear interpolation from TOP_RADIUS (layer=1) to MIN_RADIUS (layer=LAYERS)."""
@@ -74,13 +182,14 @@ while running:
                     viewport_center = selected
                 current_layer += 1
                 hud.depth_m = current_layer * 100          # NEW: update depth
-                objects_in_layer = getObjects(current_layer)
+                # switch to objects stored for new layer
+                objects_in_layer = objects_store.get(current_layer, {})
                 # when deeper, radius_for_layer will shrink automatically during draw
             elif event.key == pygame.K_UP and current_layer > 1:
                 # going shallower: keep the same viewport center but increase radius
                 current_layer -= 1
                 hud.depth_m = current_layer * 100          # NEW: update depth
-                objects_in_layer = getObjects(current_layer)
+                objects_in_layer = objects_store.get(current_layer, {})
 
         # mouse click: select pixel only if it's inside the current viewport (non-black)
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -99,7 +208,7 @@ while running:
                     for c in range(COLS):
                         grid[r][c] = 0
                 grid[row][col] = 1
-                objects_in_layer = getObjects(current_layer)
+                objects_in_layer = objects_store.get(current_layer, {})
             else:
                 # only allow clicks inside the currently visible bounds (non-black)
                 if in_viewport(col, row, viewport_center, layer_radius):
@@ -109,7 +218,13 @@ while running:
                         for c in range(COLS):
                             grid[r][c] = 0
                     grid[row][col] = 1
-                    # we do NOT call getObjects or change radius here; that happens on DOWN key
+                    # try to collect any object at this selected cell in current layer
+                    collected = collect_at(objects_store, col, row, current_layer)
+                    if collected:
+                        print("Collected:", collected['type'])
+                        # update HUD counts
+                        hud.increment_collected(collected['type'])
+                    # we do NOT change viewport bounds here; DOWN key performs depth movement
                 if prev_selected is not None:
                     dx = selected[0] - prev_selected[0]
                     dy = selected[1] - prev_selected[1]
@@ -137,40 +252,9 @@ while running:
         for c in range(cmin, cmax + 1):
             pygame.draw.rect(screen, BASE_COLOR, (c * CELL_SIZE, r * CELL_SIZE, CELL_SIZE, CELL_SIZE))
 
-        # draw objects for current layer (if provided by getObjects)
+        # draw objects for current layer from the in-memory store
         try:
-            if objects_in_layer:
-                # scale factor from source (50x50) to current grid (e.g. 200x200 => scale=4)
-                src_size = 50
-                scale = max(1, COLS // src_size)
-
-                # iterate with the object type key so we know what color to use
-                for obj_type, df in objects_in_layer.items():
-                    color = OBJECT_COLORS.get(obj_type, (255, 0, 0))  # fallback red if missing
-
-                    for _, rowobj in df.iterrows():
-                        if 'col' in rowobj and 'row' in rowobj:
-                            # source coords in 50x50 space
-                            src_c = int(rowobj['col'])
-                            src_r = int(rowobj['row'])
-
-                            # scale up to 200x200 grid coords
-                            oc = src_c * scale
-                            orow = src_r * scale
-
-                            oc_end = oc + scale
-                            orow_end = orow + scale
-
-                            # skip objects fully outside viewport
-                            if oc_end <= cmin or oc >= cmax + 1 or orow_end <= rmin or orow >= rmax + 1:
-                                continue
-
-                            x_px = oc * CELL_SIZE
-                            y_px = orow * CELL_SIZE
-                            w_px = scale * CELL_SIZE
-                            h_px = scale * CELL_SIZE
-
-                            pygame.draw.rect(screen, color, (x_px, y_px, w_px, h_px))
+            draw_objects(screen, objects_store, current_layer, cmin, cmax, rmin, rmax, CELL_SIZE, OBJECT_COLORS)
         except Exception:
             pass
 

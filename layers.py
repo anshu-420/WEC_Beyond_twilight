@@ -26,7 +26,7 @@ def assignRandomLayers(data):
     # print(poi[:20])
 
     resources = data['resources']
-    resources['layer'] = np.random.randint(5, 6, size=len(resources))
+    resources['layer'] = np.random.randint(6, 7, size=len(resources))
     # print(resources[:20])
 
     
