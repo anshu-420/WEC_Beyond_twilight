@@ -1,3 +1,5 @@
+#Team Name: Anything Works
+
 import numpy as np
 import math
 from typing import Tuple
@@ -14,9 +16,9 @@ def compute_viewport_bounds(center_col: int, center_row: int,
 def visible_mask(center_col: int, center_row: int, radius: int,
                  grid_w: int, grid_h: int) -> np.ndarray:
     """Return boolean mask shape (grid_h, grid_w). True = visible."""
-    # Create grid of indices (cols across axis1, rows across axis0)
-    cols = np.arange(grid_w)[None, :]        # shape (1, grid_w)
-    rows = np.arange(grid_h)[:, None]        # shape (grid_h, 1)
+
+    cols = np.arange(grid_w)[None, :]        
+    rows = np.arange(grid_h)[:, None]     
     mask = (np.abs(cols - center_col) <= radius) & (np.abs(rows - center_row) <= radius)
     return mask
 

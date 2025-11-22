@@ -2,18 +2,16 @@
 
 import pygame
 
-# Default sizes if you want to reuse this HUD in other projects
 DEFAULT_WINDOW_WIDTH = 800
 DEFAULT_GUI_HEIGHT = 100
 
-# Shared colors for each object type from layers.py
 OBJECT_COLORS = {
-    "life":      (255, 255, 255),  # Marine Life
-    "poi":       (0, 150, 255),    # Point of Interest
-    "corals":    (155, 155, 0),    # Coral Reef
-    "hazards":   (255, 100, 0),    # Hazard
-    "food_web":  (180, 0, 255),    # Food Web (pick any distinct color you like)
-    "resources": (0, 200, 120),    # Resources (pick any distinct color you like)
+    "life":      (255, 255, 255), 
+    "poi":       (0, 150, 255),  
+    "corals":    (155, 155, 0),   
+    "hazards":   (255, 100, 0),  
+    "food_web":  (180, 0, 255),    
+    "resources": (0, 200, 120),    
 }
 
 OBJECT_LABELS = {
@@ -25,7 +23,6 @@ OBJECT_LABELS = {
     "resources": "Resources",
 }
 
-# Default legend entries (you can override from main)
 DEFAULT_LEGEND_ITEMS = [
     {"color": OBJECT_COLORS["life"],      "label": OBJECT_LABELS["life"]},
     {"color": OBJECT_COLORS["poi"],       "label": OBJECT_LABELS["poi"]},
@@ -49,14 +46,14 @@ class HUD:
         gui_height: int = DEFAULT_GUI_HEIGHT,
         legend_items=None,
     ):
-        self.grid_height = grid_height       # top of GUI (e.g. 800)
+        self.grid_height = grid_height       # top of GUI 
         self.window_width = window_width     # e.g. 800
         self.gui_height = gui_height         # e.g. 100
 
         # HUD values
         self.hull_health = 100   # 0–100
         self.fuel = 100          # 0–100
-        self.depth_m = 0         # depth in meters (int or float)
+        self.depth_m = 0         # depth in meters
 
         # Legend entries
         self.legend_items = legend_items if legend_items is not None else DEFAULT_LEGEND_ITEMS
@@ -68,13 +65,12 @@ class HUD:
     def draw(self, surface: pygame.Surface):
         """Draw the HUD onto the given surface."""
 
-        gui_y = self.grid_height  # starting y of GUI region
+        gui_y = self.grid_height  
         gui_height = self.gui_height
 
         # Background panel
         pygame.draw.rect(surface, GUI_BG, (0, gui_y, self.window_width, gui_height))
 
-        # -------- Legend --------
         legend_x = 10
         legend_y = gui_y + 10
         box_size = 18
@@ -93,18 +89,16 @@ class HUD:
             text_surf = self.font_small.render(label, True, WHITE)
             surface.blit(text_surf, (legend_x + box_size + 8, legend_y + i * spacing_y + 2))
 
-        # -------- Bars (Hull / Fuel) --------
         bars_x = 500
         bars_y = gui_y + 10
         bar_width = 200
         bar_height = 18
         bar_spacing = 8
 
-        # Clamp ratios between 0 and 1
         health_ratio = max(0.0, min(1.0, self.hull_health / 100.0))
         fuel_ratio = max(0.0, min(1.0, self.fuel / 100.0))
 
-        # Hull Health Bar (red)
+        # Hull Health Bar
         pygame.draw.rect(surface, DARK_GREY,
                          (bars_x, bars_y, bar_width, bar_height))
         pygame.draw.rect(surface, RED,
@@ -114,7 +108,7 @@ class HUD:
         health_text = self.font_small.render(f"Hull: {int(self.hull_health)}%", True, WHITE)
         surface.blit(health_text, (bars_x + bar_width + 10, bars_y))
 
-        # Fuel Bar (yellow)
+        # Fuel Bar
         fuel_y = bars_y + bar_height + bar_spacing
         pygame.draw.rect(surface, DARK_GREY,
                          (bars_x, fuel_y, bar_width, bar_height))
@@ -125,6 +119,6 @@ class HUD:
         fuel_text = self.font_small.render(f"Fuel: {int(self.fuel)}%", True, WHITE)
         surface.blit(fuel_text, (bars_x + bar_width + 10, fuel_y))
 
-        # -------- Depth Text --------
+        # Depth
         depth_text = self.font_medium.render(f"Depth: {self.depth_m} m", True, WHITE)
         surface.blit(depth_text, (bars_x, fuel_y + bar_height + 10))
