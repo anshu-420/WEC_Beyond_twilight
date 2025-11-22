@@ -5,9 +5,11 @@ WIDTH, HEIGHT = 800, 800          # square window
 ROWS, COLS = 200, 200             # logical tiny cells
 SUB_SIZE = 4                      # 4x4 tiny cells per "big" cell (for lines only)
 CELL_SIZE = WIDTH // COLS         # 800 / 200 = 4 pixels per tiny cell
+VIEW_RADIUS = 50                 # cells visible in each direction from center
 
 # Colors
 BLACK     = (0, 0, 0)
+BASE_COLOR = (15, 50, 155)        # base blue for visible cells
 ACTIVE    = (255, 255, 255)       # fill color for active tiny cells
 GRID_LINE = (70, 70, 70)          # visible 50x50-style grid lines
 
@@ -17,6 +19,10 @@ pygame.display.set_caption("200x200 Grid (fills like 200x200)")
 
 # Full 200x200 logical grid: 0 = off, 1 = on
 grid = [[0 for _ in range(COLS)] for _ in range(ROWS)]
+
+# Viewport center (None = no special viewport; will be set on click)
+center_col = None
+center_row = None
 
 running = True
 while running:
@@ -41,6 +47,10 @@ while running:
 
                 grid[row][col] = 1
 
+                # set viewport center to the clicked cell so we show nearby cells
+                center_col = col
+                center_row = row
+
                 # If you instead want to toggle cells and keep previous ones,
                 # comment out the clear loop above and use this line only:
                 # grid[row][col] = 1 - grid[row][col]
@@ -48,25 +58,37 @@ while running:
     # --- Draw ---
     screen.fill(BLACK)
 
-    # Fill ALL active tiny cells (true 200x200 logic)
-    for row in range(ROWS):
-        for col in range(COLS):
+    # Determine viewport bounds (clamped)
+    if center_col is None or center_row is None:
+        cmin, cmax = 0, COLS - 1
+        rmin, rmax = 0, ROWS - 1
+    else:
+        cmin = max(0, center_col - VIEW_RADIUS)
+        cmax = min(COLS - 1, center_col + VIEW_RADIUS)
+        rmin = max(0, center_row - VIEW_RADIUS)
+        rmax = min(ROWS - 1, center_row + VIEW_RADIUS)
+
+    # Fill the visible viewport area with base color, then draw active cells on top.
+    for row in range(rmin, rmax + 1):
+        for col in range(cmin, cmax + 1):
+            x = col * CELL_SIZE
+            y = row * CELL_SIZE
+            # draw base visible cell background
+            pygame.draw.rect(screen, BASE_COLOR, (x, y, CELL_SIZE, CELL_SIZE))
+            # draw active cell on top if set
             if grid[row][col] == 1:
-                x = col * CELL_SIZE
-                y = row * CELL_SIZE
                 pygame.draw.rect(screen, ACTIVE, (x, y, CELL_SIZE, CELL_SIZE))
 
-    # Draw ONLY "big" grid lines every 4 tiny cells so it *looks* 50x50
-    # (you can remove this section to see the full 200x200)
+    # Draw "big" grid lines every SUB_SIZE tiny cells, but only inside viewport
     # vertical lines
-    for c in range(0, COLS + 1, SUB_SIZE):
+    for c in range(cmin, cmax + 1, SUB_SIZE):
         x = c * CELL_SIZE
-        pygame.draw.line(screen, GRID_LINE, (x, 0), (x, HEIGHT), 1)
+        pygame.draw.line(screen, GRID_LINE, (x, rmin * CELL_SIZE), (x, (rmax + 1) * CELL_SIZE), 1)
 
     # horizontal lines
-    for r in range(0, ROWS + 1, SUB_SIZE):
+    for r in range(rmin, rmax + 1, SUB_SIZE):
         y = r * CELL_SIZE
-        pygame.draw.line(screen, GRID_LINE, (0, y), (WIDTH, y), 1)
+        pygame.draw.line(screen, GRID_LINE, (cmin * CELL_SIZE, y), ((cmax + 1) * CELL_SIZE, y), 1)
 
     pygame.display.update()
 
