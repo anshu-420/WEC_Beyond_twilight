@@ -61,9 +61,19 @@ class HUD:
         # Legend entries
         self.legend_items = legend_items if legend_items is not None else DEFAULT_LEGEND_ITEMS
 
+        # Collected counts per object type (updated externally by main)
+        # keys match OBJECT_LABELS / DEFAULT_LEGEND_ITEMS
+        self.collected_counts = {k: 0 for k in OBJECT_LABELS.keys()}
+
         # Fonts (initialize once)
         self.font_small = pygame.font.SysFont(None, 20)
         self.font_medium = pygame.font.SysFont(None, 28)
+
+    def increment_collected(self, obj_type: str, n: int = 1):
+        """Increment collected count for an object type."""
+        if obj_type not in self.collected_counts:
+            self.collected_counts[obj_type] = 0
+        self.collected_counts[obj_type] += n
 
     def draw(self, surface: pygame.Surface):
         """Draw the HUD onto the given surface."""
@@ -82,7 +92,17 @@ class HUD:
 
         for i, item in enumerate(self.legend_items):
             color = item["color"]
-            label = item["label"]
+            base_label = item["label"]
+            # Try to derive object type key from label matching OBJECT_LABELS
+            # Fallback: use the base label as-is with no count.
+            obj_key = None
+            for k, v in OBJECT_LABELS.items():
+                if v == base_label:
+                    obj_key = k
+                    break
+
+            count = self.collected_counts.get(obj_key, 0) if obj_key is not None else None
+            label = f"{base_label} ({count})" if count is not None else base_label
 
             # Color box
             box_rect = pygame.Rect(legend_x, legend_y + i * spacing_y, box_size, box_size)
