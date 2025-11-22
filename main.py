@@ -1,98 +1,73 @@
 import pygame
-import sys
 
 # --- Settings ---
-WIDTH, HEIGHT = 800, 800
-FPS = 60
-WINDOW_TITLE = "50 x 50 Clickable Grid"
-
-ROWS, COLS = 50, 50
-CELL_SIZE = WIDTH // COLS  # square window
+WIDTH, HEIGHT = 800, 800          # square window
+ROWS, COLS = 200, 200             # logical tiny cells
+SUB_SIZE = 4                      # 4x4 tiny cells per "big" cell (for lines only)
+CELL_SIZE = WIDTH // COLS         # 800 / 200 = 4 pixels per tiny cell
 
 # Colors
-BLACK = (0, 0, 0)
-ACTIVE = (255, 255, 255)
+BLACK     = (0, 0, 0)
+ACTIVE    = (255, 255, 255)       # fill color for active tiny cells
+GRID_LINE = (70, 70, 70)          # visible 50x50-style grid lines
 
+pygame.init()
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("200x200 Grid (fills like 200x200)")
 
-class Game:
-    def __init__(self):
-        pygame.init()
+# Full 200x200 logical grid: 0 = off, 1 = on
+grid = [[0 for _ in range(COLS)] for _ in range(ROWS)]
 
-        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
-        pygame.display.set_caption(WINDOW_TITLE)
+running = True
+while running:
 
-        self.clock = pygame.time.Clock()
-        self.running = True
-        self.playing = True
+    # --- Events ---
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
 
-        # 2D grid: 0 = off, 1 = on
-        self.grid = [[0 for _ in range(COLS)] for _ in range(ROWS)]
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            mx, my = event.pos
 
-    def run(self):
-        while self.playing:
-            self.clock.tick(FPS)
-            self.handle_events()
-            self.update()
-            self.draw()
+            if 0 <= mx < WIDTH and 0 <= my < HEIGHT:
+                col = mx // CELL_SIZE      # 0..199
+                row = my // CELL_SIZE      # 0..199
 
-    def handle_events(self):
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.playing = False
-                self.running = False
+                # Option A: only current cell is active (like a cursor)
+                # clear whole grid first
+                for r in range(ROWS):
+                    for c in range(COLS):
+                        grid[r][c] = 0
 
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    self.playing = False
-                    self.running = False
+                grid[row][col] = 1
 
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1:  # left click
-                    mx, my = event.pos
-                    col = mx // CELL_SIZE
-                    row = my // CELL_SIZE
+                # If you instead want to toggle cells and keep previous ones,
+                # comment out the clear loop above and use this line only:
+                # grid[row][col] = 1 - grid[row][col]
 
-                    if 0 <= row < ROWS and 0 <= col < COLS:
-                        # clear entire grid
-                        for r in range(ROWS):
-                            for c in range(COLS):
-                                self.grid[r][c] = 0
+    # --- Draw ---
+    screen.fill(BLACK)
 
-                        # set ONLY the current cell to active
-                        self.grid[row][col] = 1
-
-    def update(self):
-        # no movement logic needed for now
-        pass
-
-    def draw(self):
-        self.screen.fill(BLACK)
-
-        for row in range(ROWS):
-            for col in range(COLS):
+    # Fill ALL active tiny cells (true 200x200 logic)
+    for row in range(ROWS):
+        for col in range(COLS):
+            if grid[row][col] == 1:
                 x = col * CELL_SIZE
                 y = row * CELL_SIZE
+                pygame.draw.rect(screen, ACTIVE, (x, y, CELL_SIZE, CELL_SIZE))
 
-                if self.grid[row][col] == 1:
-                    color = ACTIVE
-                else:
-                    color = BLACK
+    # Draw ONLY "big" grid lines every 4 tiny cells so it *looks* 50x50
+    # (you can remove this section to see the full 200x200)
+    # vertical lines
+    for c in range(0, COLS + 1, SUB_SIZE):
+        x = c * CELL_SIZE
+        pygame.draw.line(screen, GRID_LINE, (x, 0), (x, HEIGHT), 1)
 
-                # filled cell
-                pygame.draw.rect(self.screen, color, (x, y, CELL_SIZE, CELL_SIZE))
-                # optional grid line
-                pygame.draw.rect(self.screen, BLACK, (x, y, CELL_SIZE, CELL_SIZE), 1)
+    # horizontal lines
+    for r in range(0, ROWS + 1, SUB_SIZE):
+        y = r * CELL_SIZE
+        pygame.draw.line(screen, GRID_LINE, (0, y), (WIDTH, y), 1)
 
-        pygame.display.flip()
+    pygame.display.update()
 
-
-def main():
-    game = Game()
-    while game.running:
-        game.run()
-    pygame.quit()
-    sys.exit()
-
-
-if __name__ == "__main__":
-    main()
+pygame.quit()
