@@ -1,4 +1,5 @@
 import pygame
+from layers import getObjects
 
 # --- Settings ---
 WIDTH, HEIGHT = 800, 800          # square window
@@ -12,6 +13,9 @@ BLACK     = (0, 0, 0)
 BASE_COLOR = (15, 50, 155)        # base blue for visible cells
 ACTIVE    = (255, 255, 255)       # fill color for active tiny cells
 GRID_LINE = (70, 70, 70)          # visible 50x50-style grid lines
+
+objects_in_layer_3 = getObjects(3)  # Example call to load data for layer 3
+# print(objects_in_layer_3)
 
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
