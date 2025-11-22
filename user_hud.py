@@ -65,14 +65,11 @@ class HUD:
         self.font_medium = pygame.font.SysFont(None, 28)
 
     def increment_collected(self, obj_type: str, n: int = 1):
-        """Increment collected count for an object type."""
         if obj_type not in self.collected_counts:
             self.collected_counts[obj_type] = 0
         self.collected_counts[obj_type] += n
 
     def draw(self, surface: pygame.Surface):
-        """Draw the HUD onto the given surface."""
-
         gui_y = self.grid_height  
         gui_height = self.gui_height
 
