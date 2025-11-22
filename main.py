@@ -66,7 +66,7 @@ def build_objects_store(getObjects_func, layers: int, cols: int, src_size: int =
         store[layer] = layer_store
     return store
 
-
+# function to collect object at (col,row) in given layer
 def collect_at(objects_store, col, row, layer):
     layer_objs = objects_store.get(layer)
     if not layer_objs:
@@ -86,11 +86,13 @@ def collect_at(objects_store, col, row, layer):
                 i += 1
     return None
 
-
+# function to draw objects in current layer
 def draw_objects(screen, objects_store, layer, cmin, cmax, rmin, rmax, cell_size, object_colors):
     layer_objs = objects_store.get(layer, {})
     for obj_type, obj_list in layer_objs.items():
         color = object_colors.get(obj_type, (255, 0, 0))
+
+        # draw each object as rectangle
         for obj in obj_list:
             oc = int(obj['col'])
             orow = int(obj['row'])
@@ -120,7 +122,7 @@ MIN_RADIUS = 20
 BLACK      = (0, 0, 0)
 BASE_COLOR = (15, 50, 155)
 ACTIVE     = (255, 255, 255)
-SELECTED   = (255, 255, 255)   # chosen pixel highlight (green)
+SELECTED   = (255, 255, 255)
 GRID_LINE  = (70, 70, 70)
 
 pygame.init()
@@ -148,8 +150,8 @@ objects_in_layer = objects_store.get(current_layer, {})
 
 # HUD maintains collected_counts and fonts; no local collected_counts required
 
+# function to compute radius for a given layer
 def radius_for_layer(layer):
-    """Linear interpolation from TOP_RADIUS (layer=1) to MIN_RADIUS (layer=LAYERS)."""
     if LAYERS <= 1:
         return MIN_RADIUS
     t = (layer - 1) / (LAYERS - 1)
@@ -158,6 +160,7 @@ def radius_for_layer(layer):
 def pixel_to_cell(mx, my):
     return mx // CELL_SIZE, my // CELL_SIZE
 
+# function to check if (col,row) is inside viewport
 def in_viewport(col, row, center, radius):
     """Square viewport check: Chebyshev distance <= radius."""
     if center is None:
@@ -165,38 +168,40 @@ def in_viewport(col, row, center, radius):
     ccol, crow = center
     return abs(col - ccol) <= radius and abs(row - crow) <= radius
 
+# Main loop
 running = True
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
     
-        # depth control: DOWN to go deeper, UP to go shallower
+        #DOWN to go deeper, UP to go up
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_DOWN and current_layer < LAYERS:
-                # going deeper: the selected pixel (must be inside current viewport) becomes the new viewport center
                 if selected is not None:
                     viewport_center = selected
                 current_layer += 1
-                hud.depth_m = current_layer * 100          # NEW: update depth
+                hud.depth_m = current_layer * 100  
+                
                 # switch to objects stored for new layer
                 objects_in_layer = objects_store.get(current_layer, {})
-                # when deeper, radius_for_layer will shrink automatically during draw
+
             elif event.key == pygame.K_UP and current_layer > 1:
-                # going shallower: keep the same viewport center but increase radius
+                # going up and keep the same viewport center but increase radius
                 current_layer -= 1
-                hud.depth_m = current_layer * 100          # NEW: update depth
+                hud.depth_m = current_layer * 100
                 objects_in_layer = objects_store.get(current_layer, {})
 
-        # mouse click: select pixel only if it's inside the current viewport (non-black)
+        # if user clicks mouse
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             mx, my = event.pos
             col, row = pixel_to_cell(mx, my)
             if not (0 <= col < COLS and 0 <= row < ROWS):
                 continue
 
-            layer_radius = radius_for_layer(current_layer)
-            # if no viewport_center yet (first click), allow click anywhere and set viewport_center
+            layer_radius = radius_for_layer(current_layer)      # update radius for current layer
+            
+
             if viewport_center is None:
                 viewport_center = (col, row)
                 selected = (col, row)
@@ -215,13 +220,15 @@ while running:
                         for c in range(COLS):
                             grid[r][c] = 0
                     grid[row][col] = 1
+
                     # try to collect any object at this selected cell in current layer
                     collected = collect_at(objects_store, col, row, current_layer)
                     if collected:
                         print("Collected:", collected['type'])
                         # update HUD counts
                         hud.increment_collected(collected['type'])
-                    # we do NOT change viewport bounds here; DOWN key performs depth movement
+                
+                # update fuel based on movement distance
                 if prev_selected is not None:
                     dx = selected[0] - prev_selected[0]
                     dy = selected[1] - prev_selected[1]
@@ -230,9 +237,8 @@ while running:
 
                 prev_selected = selected
 
-    # Drawing
     screen.fill(BLACK)
-    layer_radius = radius_for_layer(current_layer)
+    layer_radius = radius_for_layer(current_layer)      # update radius for current layer
 
     if viewport_center is None:
         cmin, cmax = 0, COLS - 1
