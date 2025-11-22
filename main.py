@@ -5,68 +5,69 @@ from user_hud import HUD, OBJECT_COLORS, OBJECT_LABELS
 from layers import getObjects
 import pandas as pd
 
-# ---------------- collector helpers (in-file) ----------------
+# all the objects types we have in dataset
 OBJ_TYPES = ['corals', 'food_web', 'hazards', 'life', 'poi', 'resources']
 
+# function to build objects store
 def build_objects_store(getObjects_func, layers: int, cols: int, src_size: int = 50):
-    """Build an in-memory store scaling source 50x50 coords into our grid."""
     scale = max(1, cols // src_size)
-    store = {}
+    store = {}      
+
+    # Iterate over each layer to build the store
     for layer in range(1, layers + 1):
         raw = getObjects_func(layer)
         layer_store = {}
+
+        # If no objects in this layer, initialize empty lists for each object type
         if not raw:
             for ot in OBJ_TYPES:
                 layer_store[ot] = []
             store[layer] = layer_store
             continue
 
-        for ot in OBJ_TYPES:
-            df = raw.get(ot)
-            objs = []
+        # Process each object type in this layer
+        for objectType in OBJ_TYPES:
+            df = raw.get(objectType)
+            objects = []
             if df is None:
-                layer_store[ot] = objs
+                layer_store[objectType] = objects
                 continue
 
+            # Scale and store each object
             for _, r in df.iterrows():
                 if 'col' not in r or 'row' not in r:
                     continue
                 try:
-                    src_c = int(r['col'])
-                    src_r = int(r['row'])
+                    src_col = int(r['col'])
+                    src_row = int(r['row'])
                 except Exception:
                     continue
 
-                scaled_c = src_c * scale
-                scaled_r = src_r * scale
+                scaled_col = src_col * scale
+                scaled_row = src_row * scale
                 w_src = int(r['width']) if 'width' in r and not pd.isna(r['width']) else 1
                 h_src = int(r['height']) if 'height' in r and not pd.isna(r['height']) else 1
                 scaled_w = max(1, w_src * scale)
                 scaled_h = max(1, h_src * scale)
 
                 obj = {
-                    'type': ot,
-                    'src_col': src_c,
-                    'src_row': src_r,
-                    'col': int(scaled_c),
-                    'row': int(scaled_r),
+                    'type': objectType,
+                    'src_col': src_col,
+                    'src_row': src_row,
+                    'col': int(scaled_col),
+                    'row': int(scaled_row),
                     'w': int(scaled_w),
                     'h': int(scaled_h),
                     'meta': r.to_dict(),
                 }
-                objs.append(obj)
+                objects.append(obj)
 
-            layer_store[ot] = objs
+            layer_store[objectType] = objects
         store[layer] = layer_store
     return store
 
 
 def collect_at(objects_store, col, row, layer):
-    """Collect an object at (col,row) in given layer if present. Returns object or None.
-
-    The function removes the object from the in-memory store and returns it.
-    Caller is responsible for updating counts (e.g., hud.increment_collected).
-    """
     layer_objs = objects_store.get(layer)
     if not layer_objs:
         return None
@@ -87,7 +88,6 @@ def collect_at(objects_store, col, row, layer):
 
 
 def draw_objects(screen, objects_store, layer, cmin, cmax, rmin, rmax, cell_size, object_colors):
-    """Draw objects from store[layer] using provided `object_colors` mapping."""
     layer_objs = objects_store.get(layer, {})
     for obj_type, obj_list in layer_objs.items():
         color = object_colors.get(obj_type, (255, 0, 0))
@@ -105,15 +105,12 @@ def draw_objects(screen, objects_store, layer, cmin, cmax, rmin, rmax, cell_size
             pygame.draw.rect(screen, color, (x_px, y_px, w_px, h_px))
 
 
-# (legend rendering moved into HUD)
-# ---------------- end collector helpers ----------------
-
-# --- Settings ---
-WINDOW_WIDTH, WINDOW_HEIGHT = 800, 900
-GRID_WIDTH, GRID_HEIGHT = 800, 800 # area for grid (top)
+# define constants
+Window_width, Window_height = 800, 900
+GRID_WIDTH, GRID_HEIGHT = 800, 800 
 ROWS, COLS = 200, 200
 SUB_SIZE = 4
-CELL_SIZE = WINDOW_WIDTH // COLS
+CELL_SIZE = Window_width // COLS
 
 LAYERS = 6
 TOP_RADIUS = 75
@@ -127,13 +124,13 @@ SELECTED   = (255, 255, 255)   # chosen pixel highlight (green)
 GRID_LINE  = (70, 70, 70)
 
 pygame.init()
-screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+screen = pygame.display.set_mode((Window_width, Window_height))
 clock = pygame.time.Clock()
 
 # logical grid (0 = off, 1 = active)
 grid = [[0 for _ in range(COLS)] for _ in range(ROWS)]
 
-hud = HUD(grid_height=GRID_HEIGHT, window_width=WINDOW_WIDTH)
+hud = HUD(grid_height=GRID_HEIGHT, window_width=Window_width)
 
 # Initial values
 current_layer = 1
