@@ -1,11 +1,15 @@
+#Team Name: Anything Works
+
 import pygame
+from user_hud import HUD, OBJECT_COLORS 
 from layers import getObjects
 
 # --- Settings ---
-WIDTH, HEIGHT = 800, 800
+WINDOW_WIDTH, WINDOW_HEIGHT = 800, 900
+GRID_WIDTH, GRID_HEIGHT = 800, 800 # area for grid (top)
 ROWS, COLS = 200, 200
 SUB_SIZE = 4
-CELL_SIZE = WIDTH // COLS
+CELL_SIZE = WINDOW_WIDTH // COLS
 
 LAYERS = 6
 TOP_RADIUS = 75
@@ -15,16 +19,24 @@ MIN_RADIUS = 20
 BLACK      = (0, 0, 0)
 BASE_COLOR = (15, 50, 155)
 ACTIVE     = (255, 255, 255)
-SELECTED   = (0, 255, 0)   # chosen pixel highlight (green)
-OBJ_COLOR  = (255, 0, 0)
+SELECTED   = (255, 255, 255)   # chosen pixel highlight (green)
 GRID_LINE  = (70, 70, 70)
 
 pygame.init()
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
+screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
 clock = pygame.time.Clock()
 
 # logical grid (0 = off, 1 = active)
 grid = [[0 for _ in range(COLS)] for _ in range(ROWS)]
+
+
+hud = HUD(grid_height=GRID_HEIGHT, window_width=WINDOW_WIDTH)
+
+
+# Initial values
+hud.hull_health = 100
+hud.fuel = 100
+hud.depth_m = 100
 
 # viewport and selection state
 viewport_center = None          # (col,row) or None
@@ -119,40 +131,43 @@ while running:
         for c in range(cmin, cmax + 1):
             pygame.draw.rect(screen, BASE_COLOR, (c * CELL_SIZE, r * CELL_SIZE, CELL_SIZE, CELL_SIZE))
 
-    # draw objects for current layer (if provided by getObjects)
-    try:
-        if objects_in_layer:
-            # scale factor from source (50x50) to current grid (e.g. 200x200 => scale=4)
-            src_size = 50
-            scale = max(1, COLS // src_size)
+        # draw objects for current layer (if provided by getObjects)
+        try:
+            if objects_in_layer:
+                # scale factor from source (50x50) to current grid (e.g. 200x200 => scale=4)
+                src_size = 50
+                scale = max(1, COLS // src_size)
 
-            for df in objects_in_layer.values():
-                for _, rowobj in df.iterrows():
-                    if 'col' in rowobj and 'row' in rowobj:
-                        # source coords in 50x50 space
-                        src_c = int(rowobj['col'])
-                        src_r = int(rowobj['row'])
+                # iterate with the object type key so we know what color to use
+                for obj_type, df in objects_in_layer.items():
+                    color = OBJECT_COLORS.get(obj_type, (255, 0, 0))  # fallback red if missing
 
-                        # scale up to 200x200 grid coords
-                        oc = src_c * scale
-                        orow = src_r * scale
+                    for _, rowobj in df.iterrows():
+                        if 'col' in rowobj and 'row' in rowobj:
+                            # source coords in 50x50 space
+                            src_c = int(rowobj['col'])
+                            src_r = int(rowobj['row'])
 
-                        # object's extent in scaled coordinates (inclusive start, exclusive end)
-                        oc_end = oc + scale  # exclusive
-                        orow_end = orow + scale
+                            # scale up to 200x200 grid coords
+                            oc = src_c * scale
+                            orow = src_r * scale
 
-                        # skip objects fully outside viewport (fast rejection)
-                        if oc_end <= cmin or oc >= cmax + 1 or orow_end <= rmin or orow >= rmax + 1:
-                            continue
+                            oc_end = oc + scale
+                            orow_end = orow + scale
 
-                        # draw scaled object as a block of size (scale x scale) logical cells
-                        x_px = oc * CELL_SIZE
-                        y_px = orow * CELL_SIZE
-                        w_px = scale * CELL_SIZE
-                        h_px = scale * CELL_SIZE
-                        pygame.draw.rect(screen, OBJ_COLOR, (x_px, y_px, w_px, h_px))
-    except Exception:
-        pass
+                            # skip objects fully outside viewport
+                            if oc_end <= cmin or oc >= cmax + 1 or orow_end <= rmin or orow >= rmax + 1:
+                                continue
+
+                            x_px = oc * CELL_SIZE
+                            y_px = orow * CELL_SIZE
+                            w_px = scale * CELL_SIZE
+                            h_px = scale * CELL_SIZE
+
+                            pygame.draw.rect(screen, color, (x_px, y_px, w_px, h_px))
+        except Exception:
+            pass
+
 
     # draw active cell(s) on top
     for r in range(rmin, rmax + 1):
@@ -173,6 +188,8 @@ while running:
     for r in range(rmin, rmax + 1, SUB_SIZE):
         y = r * CELL_SIZE
         pygame.draw.line(screen, GRID_LINE, (cmin * CELL_SIZE, y), ((cmax + 1) * CELL_SIZE, y), 1)
+
+    hud.draw(screen)
 
     pygame.display.set_caption(f"Layer {current_layer}/{LAYERS}  radius={layer_radius}")
     pygame.display.flip()

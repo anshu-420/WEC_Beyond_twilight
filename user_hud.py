@@ -1,37 +1,47 @@
+#Team Name: Anything Works
+
 import pygame
 
 # Default sizes if you want to reuse this HUD in other projects
 DEFAULT_WINDOW_WIDTH = 800
 DEFAULT_GUI_HEIGHT = 100
 
+# Shared colors for each object type from layers.py
+OBJECT_COLORS = {
+    "life":      (255, 255, 255),  # Marine Life
+    "poi":       (0, 150, 255),    # Point of Interest
+    "corals":    (155, 155, 0),    # Coral Reef
+    "hazards":   (255, 100, 0),    # Hazard
+    "food_web":  (180, 0, 255),    # Food Web (pick any distinct color you like)
+    "resources": (0, 200, 120),    # Resources (pick any distinct color you like)
+}
+
+OBJECT_LABELS = {
+    "life":      "Marine Life",
+    "poi":       "Point of Interest",
+    "corals":    "Coral Reef",
+    "hazards":   "Hazard",
+    "food_web":  "Food Web",
+    "resources": "Resources",
+}
+
 # Default legend entries (you can override from main)
 DEFAULT_LEGEND_ITEMS = [
-    {"color": (255, 255, 255), "label": "Selected cell"},
-    {"color": (0, 150, 255),   "label": "Water"},
-    {"color": (0, 255, 100),   "label": "Safe zone"},
-    {"color": (255, 100, 0),   "label": "Hazard"},
+    {"color": OBJECT_COLORS["life"],      "label": OBJECT_LABELS["life"]},
+    {"color": OBJECT_COLORS["poi"],       "label": OBJECT_LABELS["poi"]},
+    {"color": OBJECT_COLORS["corals"],    "label": OBJECT_LABELS["corals"]},
+    {"color": OBJECT_COLORS["hazards"],   "label": OBJECT_LABELS["hazards"]},
+    {"color": OBJECT_COLORS["food_web"],  "label": OBJECT_LABELS["food_web"]},
+    {"color": OBJECT_COLORS["resources"], "label": OBJECT_LABELS["resources"]},
 ]
 
-# Colors
-GUI_BG     = (20, 20, 20)
-WHITE      = (255, 255, 255)
-RED        = (200, 50, 50)
-YELLOW     = (230, 210, 50)
-DARK_GREY  = (40, 40, 40)
-
+GUI_BG    = (20, 20, 20)
+WHITE     = (255, 255, 255)
+RED       = (200, 50, 50)
+YELLOW    = (230, 210, 50)
+DARK_GREY = (40, 40, 40)
 
 class HUD:
-    """
-    HUD / GUI bar that sits below the playing area.
-
-    Usage:
-        hud = HUD(grid_height=800, window_width=800)
-        hud.hull_health = 75
-        hud.fuel = 40
-        hud.depth_m = 120
-        hud.draw(screen)
-    """
-
     def __init__(
         self,
         grid_height: int,
@@ -84,7 +94,7 @@ class HUD:
             surface.blit(text_surf, (legend_x + box_size + 8, legend_y + i * spacing_y + 2))
 
         # -------- Bars (Hull / Fuel) --------
-        bars_x = 350
+        bars_x = 500
         bars_y = gui_y + 10
         bar_width = 200
         bar_height = 18
